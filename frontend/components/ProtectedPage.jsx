@@ -1,0 +1,3 @@
+"use client";
+import { useEffect } from "react"; import { useRouter } from "next/navigation"; import { useAuth } from "./AuthProvider";
+export default function ProtectedPage({ children }) { const { user, loading } = useAuth(); const router = useRouter(); useEffect(() => { if (!loading && !user) router.replace("/login"); }, [loading, user, router]); if (loading || !user) return <main className="mx-auto max-w-5xl px-4 py-16 text-slate-600">Checking your account…</main>; return children; }

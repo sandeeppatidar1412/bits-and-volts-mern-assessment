@@ -1,0 +1,5 @@
+"use strict";
+const { Router } = require("express");
+const route = (module) => module.default || module;
+const authRoutes = route(require("./authRoutes")); const userRoutes = route(require("./userRoutes")); const productRoutes = route(require("./productRoutes")); const categoryRoutes = route(require("./categoryRoutes")); const cartRoutes = route(require("./cartRoutes")); const wishlistRoutes = route(require("./wishlistRoutes")); const chatRoutes = route(require("./chatRoutes")); const adminRoutes = route(require("./adminRoutes"));
+const router = Router(); router.use("/auth", authRoutes); router.use("/users", userRoutes); router.use("/products", productRoutes); router.use("/categories", categoryRoutes); router.use("/cart", cartRoutes); router.use("/wishlist", wishlistRoutes); router.use("/chat", chatRoutes); router.use("/admin", adminRoutes); module.exports = router;

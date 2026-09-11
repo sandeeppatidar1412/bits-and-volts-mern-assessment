@@ -1,0 +1,18 @@
+"use strict";
+const { Router } = require("express");
+const { z } = require("zod");
+const { User } = require("../models/User");
+const { Product } = require("../models/Product");
+const { requireAuth, requireAdmin } = require("../middleware/auth");
+const { sendSuccess, sendError } = require("../utils/apiResponse");
+const router = Router();
+const roles = ["USER", "ADMIN", "SUPER_ADMIN", "STAFF"];
+const safeUser = (user) => ({ id: user._id, name: user.name, email: user.email, phone: user.phone, avatar: user.avatar, role: user.role, isActive: user.isActive, createdAt: user.createdAt });
+router.use(requireAuth, requireAdmin);
+router.get("/users", async (_req, res) => { try { const users = await User.find().select("-password -resetPasswordToken -resetPasswordExpires").sort({ createdAt: -1 }); return sendSuccess(res, "Users fetched successfully", users); } catch { return sendError(res, "Unable to fetch users", 500); } });
+router.post("/users", async (req, res) => { try { const data = z.object({ name: z.string().trim().min(2), email: z.string().email(), password: z.string().min(6), role: z.enum(roles).default("USER") }).parse(req.body); if (await User.findOne({ email: data.email.toLowerCase() })) return sendError(res, "A user with this email already exists.", 409); const user = await User.create({ ...data, email: data.email.toLowerCase() }); return sendSuccess(res, "User created successfully", safeUser(user), 201); } catch { return sendError(res, "Enter a name, valid email, and password of at least 6 characters.", 400); } });
+router.patch("/users/:id", async (req, res) => { try { const data = z.object({ name: z.string().trim().min(2).optional(), email: z.string().email().optional(), role: z.enum(roles).optional(), isActive: z.boolean().optional() }).refine((value) => Object.keys(value).length > 0).parse(req.body); if (req.user.id === req.params.id && data.isActive === false) return sendError(res, "You cannot disable your own account.", 400); if (data.email) data.email = data.email.toLowerCase(); const user = await User.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true }).select("-password"); return user ? sendSuccess(res, "User updated successfully", safeUser(user)) : sendError(res, "User not found", 404); } catch (error) { if (error?.code === 11000) return sendError(res, "A user with this email already exists.", 409); return sendError(res, "Provide valid user details.", 400); } });
+router.delete("/users/:id", async (req, res) => { try { if (req.user.id === req.params.id) return sendError(res, "You cannot delete your own account.", 400); const user = await User.findByIdAndDelete(req.params.id); return user ? sendSuccess(res, "User deleted successfully") : sendError(res, "User not found", 404); } catch { return sendError(res, "Unable to delete user.", 400); } });
+router.get("/products", async (_req, res) => { try { const products = await Product.find().populate("category").sort({ createdAt: -1 }); return sendSuccess(res, "Admin products fetched successfully", products); } catch { return sendError(res, "Unable to fetch products", 500); } });
+router.patch("/products/:id/status", async (req, res) => { try { const { isActive } = z.object({ isActive: z.boolean() }).parse(req.body); const product = await Product.findByIdAndUpdate(req.params.id, { isActive }, { new: true }); return product ? sendSuccess(res, "Product status updated", product) : sendError(res, "Product not found", 404); } catch { return sendError(res, "Provide a valid product status.", 400); } });
+module.exports = router;
