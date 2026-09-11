@@ -71,4 +71,99 @@ Next validation: run the app against MongoDB, seed representative products with 
 
 ## Getting started
 
-See each app's README or package scripts for local development commands.
+## Simple setup and run
+
+### 1. Requirements
+
+Install these first:
+
+- Node.js 18 or newer
+- MongoDB connection string
+- Git
+
+### 2. Download the project
+
+```bash
+git clone <repository-url>
+cd bits-and-volts-mern-assessment
+```
+
+### 3. Install dependencies
+
+Open a terminal in the project folder and run:
+
+```bash
+cd backend
+npm install
+
+cd ../frontend
+npm install
+```
+
+### 4. Add environment files
+
+Create `backend/.env` and add your backend values:
+
+```env
+PORT=5000
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=your_long_random_secret
+CLIENT_URL=http://localhost:3000
+GOOGLE_CLIENT_ID=your_google_client_id
+```
+
+Create `frontend/.env.local`:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5000/api
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
+```
+
+Google login is currently planned for a future update. The Google button shows a message and does not start authentication.
+
+### 5. Start the backend
+
+Open Terminal 1:
+
+```bash
+cd backend
+npm run dev
+```
+
+Backend URL: `http://localhost:5000`
+
+### 6. Start the frontend
+
+Open Terminal 2:
+
+```bash
+cd frontend
+npm run dev
+```
+
+Open the website at [http://localhost:3000](http://localhost:3000).
+
+### 7. Optional seed data
+
+To add sample data, stop the backend and run:
+
+```bash
+cd backend
+npm run seed
+```
+
+Then start the backend again with `npm run dev`.
+
+### Useful commands
+
+```bash
+# Frontend lint and production build
+cd frontend
+npm run lint
+npm run build
+
+# Backend syntax check
+cd backend
+npm run build
+```
