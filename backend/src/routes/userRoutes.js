@@ -15,13 +15,14 @@ const passwordSchema = zod_1.z.object({
     currentPassword: zod_1.z.string().min(6),
     newPassword: zod_1.z.string().min(6),
 });
+const publicUser = (user) => ({ id: user._id, name: user.name, email: user.email, phone: user.phone, avatar: user.avatar, role: user.role, addresses: user.addresses, isActive: user.isActive, createdAt: user.createdAt });
 router.get('/profile', auth_1.requireAuth, async (req, res) => {
     try {
         const user = await User_1.User.findById(req.user?.id).select('-password');
         if (!user) {
             return (0, apiResponse_1.sendError)(res, 'User not found', 404);
         }
-        return (0, apiResponse_1.sendSuccess)(res, 'Profile fetched successfully', user);
+        return (0, apiResponse_1.sendSuccess)(res, 'Profile fetched successfully', publicUser(user));
     }
     catch (error) {
         return (0, apiResponse_1.sendError)(res, 'Unable to fetch profile', 500, error);
@@ -36,7 +37,7 @@ router.put('/profile', auth_1.requireAuth, async (req, res) => {
         }
         Object.assign(user, data);
         await user.save();
-        return (0, apiResponse_1.sendSuccess)(res, 'Profile updated successfully', user);
+        return (0, apiResponse_1.sendSuccess)(res, 'Profile updated successfully', publicUser(user));
     }
     catch (error) {
         return (0, apiResponse_1.sendError)(res, 'Unable to update profile', 400, error);

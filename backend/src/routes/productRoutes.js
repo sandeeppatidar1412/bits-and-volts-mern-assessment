@@ -43,11 +43,11 @@ router.get('/', async (req, res) => {
             filter.isFeatured = true;
         if (query.bestSeller)
             filter.isBestSeller = true;
-        if (query.minPrice || query.maxPrice) {
+        if (query.minPrice !== undefined || query.maxPrice !== undefined) {
             filter.price = {};
-            if (query.minPrice)
+            if (query.minPrice !== undefined)
                 filter.price.$gte = query.minPrice;
-            if (query.maxPrice)
+            if (query.maxPrice !== undefined)
                 filter.price.$lte = query.maxPrice;
         }
         const sortMap = {
@@ -57,13 +57,15 @@ router.get('/', async (req, res) => {
             popular: { rating: -1 },
             'rating-desc': { rating: -1 },
         };
+        const aliases = { chakli: ['chakli', 'chakali'], chakali: ['chakli', 'chakali'], thalipeeth: ['thalipeeth', 'thalipith'], thalipith: ['thalipeeth', 'thalipith'] };
+        const searchTerms = aliases[query.search?.trim().toLowerCase()] || [query.search];
         const searchFilter = query.search
             ? {
                 $or: [
-                    { name: { $regex: query.search, $options: 'i' } },
-                    { description: { $regex: query.search, $options: 'i' } },
-                    { tags: { $in: [new RegExp(query.search, 'i')] } },
-                    { brand: { $regex: query.search, $options: 'i' } },
+                    { name: { $in: searchTerms.map((term) => new RegExp(term, 'i')) } },
+                    { description: { $in: searchTerms.map((term) => new RegExp(term, 'i')) } },
+                    { tags: { $in: searchTerms.map((term) => new RegExp(term, 'i')) } },
+                    { brand: { $in: searchTerms.map((term) => new RegExp(term, 'i')) } },
                 ],
             }
             : {};
@@ -90,7 +92,7 @@ router.get('/', async (req, res) => {
 });
 router.get('/:id', async (req, res) => {
     try {
-        const product = await Product_1.Product.findById(req.params.id).populate('category').lean();
+        const product = await Product_1.Product.findOne({ _id: req.params.id, isActive: true, price: { $gt: 0 } }).populate('category').lean();
         if (!product) {
             return (0, apiResponse_1.sendError)(res, 'Product not found', 404);
         }
@@ -116,6 +118,11 @@ router.post('/', auth_1.requireAuth, auth_1.requireAdmin, async (req, res) => {
             isFeatured: zod_1.z.boolean().optional(),
             isBestSeller: zod_1.z.boolean().optional(),
             isNewArrival: zod_1.z.boolean().optional(),
+            allergens: zod_1.z.array(zod_1.z.string()).optional(),
+            shelfLife: zod_1.z.string().optional(),
+            storage: zod_1.z.string().optional(),
+            countryOfOrigin: zod_1.z.string().optional(),
+            vegetarian: zod_1.z.boolean().optional(),
         }).parse(req.body);
         const categoryExists = await Category_1.Category.findById(payload.category);
         if (!categoryExists) {
@@ -137,7 +144,25 @@ router.post('/', auth_1.requireAuth, auth_1.requireAdmin, async (req, res) => {
 });
 router.put('/:id', auth_1.requireAuth, auth_1.requireAdmin, async (req, res) => {
     try {
-        const product = await Product_1.Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const payload = zod_1.z.object({
+            name: zod_1.z.string().min(2).optional(), slug: zod_1.z.string().min(2).optional(),
+            description: zod_1.z.string().min(10).optional(), shortDescription: zod_1.z.string().min(10).optional(),
+            category: zod_1.z.string().optional(), price: zod_1.z.coerce.number().positive().optional(),
+            compareAtPrice: zod_1.z.coerce.number().positive().optional(), stock: zod_1.z.coerce.number().min(0).optional(),
+            images: zod_1.z.array(zod_1.z.string()).optional(), tags: zod_1.z.array(zod_1.z.string()).optional(),
+            isFeatured: zod_1.z.boolean().optional(), isBestSeller: zod_1.z.boolean().optional(), isNewArrival: zod_1.z.boolean().optional(),
+            isActive: zod_1.z.boolean().optional(), allergens: zod_1.z.array(zod_1.z.string()).optional(), shelfLife: zod_1.z.string().optional(),
+            storage: zod_1.z.string().optional(), countryOfOrigin: zod_1.z.string().optional(), vegetarian: zod_1.z.boolean().optional(),
+        }).strict().parse(req.body);
+        if (payload.category && !await Category_1.Category.exists({ _id: payload.category })) return (0, apiResponse_1.sendError)(res, 'Category not found', 404);
+        if (payload.price || payload.compareAtPrice) {
+            const current = await Product_1.Product.findById(req.params.id).select('price compareAtPrice');
+            if (!current) return (0, apiResponse_1.sendError)(res, 'Product not found', 404);
+            const price = payload.price ?? current.price;
+            const compareAtPrice = payload.compareAtPrice ?? current.compareAtPrice;
+            payload.discount = compareAtPrice ? Math.max(0, ((compareAtPrice - price) / compareAtPrice) * 100) : 0;
+        }
+        const product = await Product_1.Product.findByIdAndUpdate(req.params.id, payload, { new: true, runValidators: true });
         if (!product) {
             return (0, apiResponse_1.sendError)(res, 'Product not found', 404);
         }

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const zod_1 = require("zod");
 const Wishlist_1 = require("../models/Wishlist");
+const Product_1 = require("../models/Product");
 const auth_1 = require("../middleware/auth");
 const apiResponse_1 = require("../utils/apiResponse");
 const router = (0, express_1.Router)();
@@ -18,6 +19,8 @@ router.get('/', auth_1.requireAuth, async (req, res) => {
 router.post('/', auth_1.requireAuth, async (req, res) => {
     try {
         const { productId } = zod_1.z.object({ productId: zod_1.z.string() }).parse(req.body);
+        const product = await Product_1.Product.findOne({ _id: productId, isActive: true, price: { $gt: 0 } });
+        if (!product) return (0, apiResponse_1.sendError)(res, 'Product not found or unavailable', 404);
         const existing = await Wishlist_1.Wishlist.findOne({ user: req.user?.id, product: productId });
         if (existing) {
             return (0, apiResponse_1.sendError)(res, 'Item already in wishlist', 409);
